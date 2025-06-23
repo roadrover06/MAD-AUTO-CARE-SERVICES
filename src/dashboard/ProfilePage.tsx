@@ -9,7 +9,10 @@ import {
   Alert,
   Fade,
   CircularProgress,
-  Snackbar
+  Snackbar,
+  Avatar,
+  Stack,
+  Divider
 } from "@mui/material";
 import { AccountCircle, Lock, Person } from "@mui/icons-material";
 import { saveCredentials } from "../firebase/firestoreHelpers";
@@ -25,7 +28,6 @@ interface ProfilePageProps {
 }
 
 const ProfilePage: React.FC<ProfilePageProps> = ({ user, onBack }) => {
-  // Use user.firstName and user.lastName as initial values
   const [username, setUsername] = useState(user.username);
   const [firstName, setFirstName] = useState(user.firstName || "");
   const [lastName, setLastName] = useState(user.lastName || "");
@@ -88,13 +90,71 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ user, onBack }) => {
 
   const handleCloseSnackbar = () => setSnackbarOpen(false);
 
+  // Avatar initials
+  const initials = `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
+
   return (
-    <Box sx={{ maxWidth: 420, mx: "auto", mt: 6 }}>
-      <Paper sx={{ p: 4, borderRadius: 3, mb: 4 }}>
-        <Typography variant="h5" fontWeight={700} mb={2}>
+    <Box sx={{
+      maxWidth: 520,
+      mx: "auto",
+      mt: { xs: 3, sm: 6 },
+      px: { xs: 1, sm: 0 },
+      pb: 6,
+      minHeight: "100vh"
+    }}>
+      {/* Profile Card */}
+      <Paper sx={{
+        p: { xs: 2, sm: 4 },
+        borderRadius: 4,
+        mb: 4,
+        boxShadow: 6,
+        bgcolor: "background.paper",
+        position: "relative"
+      }}>
+        {/* Back Button */}
+        <Button
+          onClick={onBack}
+          size="small"
+          sx={{
+            position: "absolute",
+            left: 16,
+            top: 16,
+            minWidth: 0,
+            px: 1.5,
+            py: 0.5,
+            fontWeight: 600,
+            color: "primary.main",
+            bgcolor: "primary.light",
+            borderRadius: 2,
+            textTransform: "none",
+            display: { xs: "none", sm: "inline-flex" }
+          }}
+        >
+          Back
+        </Button>
+        <Stack direction="column" alignItems="center" spacing={2} sx={{ mb: 2 }}>
+          <Avatar sx={{
+            width: 80,
+            height: 80,
+            bgcolor: "#1976d2",
+            fontSize: 36,
+            fontWeight: 700,
+            mb: 1
+          }}>
+            {initials}
+          </Avatar>
+          <Typography variant="h5" fontWeight={700}>
+            {firstName} {lastName}
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            @{username} &nbsp;|&nbsp; {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
+          </Typography>
+        </Stack>
+        <Divider sx={{ mb: 3 }} />
+        <Typography variant="subtitle1" fontWeight={600} mb={1}>
           Edit Profile
         </Typography>
-        <form onSubmit={handleProfileUpdate}>
+        <form onSubmit={handleProfileUpdate} autoComplete="off">
           <TextField
             fullWidth
             label="Username"
@@ -109,8 +169,9 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ user, onBack }) => {
                 </InputAdornment>
               ),
             }}
-            sx={{ mb: 2 }}
+            sx={{ mb: 2, borderRadius: 2 }}
             required
+            inputProps={{ maxLength: 30, autoComplete: "username" }}
           />
           <TextField
             fullWidth
@@ -126,8 +187,9 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ user, onBack }) => {
                 </InputAdornment>
               ),
             }}
-            sx={{ mb: 2 }}
+            sx={{ mb: 2, borderRadius: 2 }}
             required
+            inputProps={{ maxLength: 30, autoComplete: "given-name" }}
           />
           <TextField
             fullWidth
@@ -143,15 +205,19 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ user, onBack }) => {
                 </InputAdornment>
               ),
             }}
-            sx={{ mb: 2 }}
+            sx={{ mb: 2, borderRadius: 2 }}
             required
+            inputProps={{ maxLength: 30, autoComplete: "family-name" }}
           />
           <Button
             type="submit"
             variant="contained"
             fullWidth
             disabled={loading}
-            sx={{ mt: 2, mb: 1, py: 1.2, fontWeight: 600 }}
+            sx={{
+              mt: 2, mb: 1, py: 1.2, fontWeight: 600, borderRadius: 2,
+              boxShadow: 2, letterSpacing: 0.5
+            }}
             startIcon={loading ? <CircularProgress size={20} /> : undefined}
           >
             {loading ? "Saving..." : "Save Changes"}
@@ -166,11 +232,17 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ user, onBack }) => {
         </form>
       </Paper>
 
-      <Paper sx={{ p: 4, borderRadius: 3 }}>
-        <Typography variant="h6" fontWeight={700} mb={2}>
+      {/* Password Card */}
+      <Paper sx={{
+        p: { xs: 2, sm: 4 },
+        borderRadius: 4,
+        boxShadow: 6,
+        bgcolor: "background.paper"
+      }}>
+        <Typography variant="subtitle1" fontWeight={600} mb={1}>
           Change Password
         </Typography>
-        <form onSubmit={handlePasswordUpdate}>
+        <form onSubmit={handlePasswordUpdate} autoComplete="off">
           <TextField
             fullWidth
             label="Current Password"
@@ -186,8 +258,9 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ user, onBack }) => {
                 </InputAdornment>
               ),
             }}
-            sx={{ mb: 2 }}
+            sx={{ mb: 2, borderRadius: 2 }}
             required
+            inputProps={{ autoComplete: "current-password", maxLength: 30 }}
           />
           <TextField
             fullWidth
@@ -204,8 +277,9 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ user, onBack }) => {
                 </InputAdornment>
               ),
             }}
-            sx={{ mb: 2 }}
+            sx={{ mb: 2, borderRadius: 2 }}
             required
+            inputProps={{ autoComplete: "new-password", maxLength: 30 }}
           />
           <TextField
             fullWidth
@@ -222,15 +296,19 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ user, onBack }) => {
                 </InputAdornment>
               ),
             }}
-            sx={{ mb: 2 }}
+            sx={{ mb: 2, borderRadius: 2 }}
             required
+            inputProps={{ autoComplete: "new-password", maxLength: 30 }}
           />
           <Button
             type="submit"
             variant="contained"
             fullWidth
             disabled={pwLoading}
-            sx={{ mt: 2, mb: 1, py: 1.2, fontWeight: 600 }}
+            sx={{
+              mt: 2, mb: 1, py: 1.2, fontWeight: 600, borderRadius: 2,
+              boxShadow: 2, letterSpacing: 0.5
+            }}
             startIcon={pwLoading ? <CircularProgress size={20} /> : undefined}
           >
             {pwLoading ? "Changing..." : "Change Password"}
@@ -245,16 +323,7 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ user, onBack }) => {
         </form>
       </Paper>
 
-      <Button
-        variant="outlined"
-        color="secondary"
-        fullWidth
-        sx={{ mt: 3 }}
-        onClick={onBack}
-      >
-        Back to Dashboard
-      </Button>
-
+      {/* Snackbar for errors */}
       <Snackbar
         open={!!error || !!pwError || snackbarOpen}
         autoHideDuration={5000}

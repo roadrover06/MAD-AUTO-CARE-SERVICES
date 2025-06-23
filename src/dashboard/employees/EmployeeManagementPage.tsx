@@ -234,6 +234,11 @@ const EmployeeManagementPage: React.FC<EmployeeManagementPageProps> = ({
     );
   };
 
+  // Stats
+  const totalEmployees = employees.length;
+  const initials = (emp: Employee) =>
+    `${emp.firstName.charAt(0)}${emp.lastName.charAt(0)}`.toUpperCase();
+
   return (
     <AppSidebar
       role="admin"
@@ -251,6 +256,25 @@ const EmployeeManagementPage: React.FC<EmployeeManagementPageProps> = ({
           pb: 4
         }}
       >
+        {/* Stats Section */}
+        <Box sx={{
+          display: "flex",
+          gap: 2,
+          mb: 3,
+          flexWrap: "wrap"
+        }}>
+          <Paper elevation={3} sx={{
+            flex: 1, minWidth: 180, p: 2, display: "flex", alignItems: "center", gap: 2,
+            borderLeft: "5px solid #1976d2", bgcolor: "background.paper"
+          }}>
+            <PersonIcon color="primary" sx={{ fontSize: 36 }} />
+            <Box>
+              <Typography variant="subtitle2" color="text.secondary">Total Employees</Typography>
+              <Typography variant="h6" fontWeight={700}>{totalEmployees}</Typography>
+            </Box>
+          </Paper>
+        </Box>
+
         {/* Header Section */}
         <Paper
           sx={{
@@ -314,7 +338,9 @@ const EmployeeManagementPage: React.FC<EmployeeManagementPageProps> = ({
                 minWidth: { xs: "100%", sm: 160 },
                 fontWeight: 600,
                 borderRadius: 2,
-                height: 40
+                height: 40,
+                bgcolor: "primary.main",
+                ":hover": { bgcolor: "primary.dark" }
               }}
             >
               {isSm ? "Add" : "Add Employee"}
@@ -368,8 +394,8 @@ const EmployeeManagementPage: React.FC<EmployeeManagementPageProps> = ({
               >
                 <TableHead>
                   <TableRow>
-                    <TableCell>Employee</TableCell>
-                    <TableCell align="right">Actions</TableCell>
+                    <TableCell sx={{ fontWeight: 700 }}>Employee</TableCell>
+                    <TableCell sx={{ fontWeight: 700 }} align="right">Actions</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -388,14 +414,21 @@ const EmployeeManagementPage: React.FC<EmployeeManagementPageProps> = ({
                             sx={{ 
                               width: 36, 
                               height: 36,
-                              bgcolor: theme.palette.primary.main
+                              bgcolor: theme.palette.primary.main,
+                              fontWeight: 700,
+                              fontSize: 18
                             }}
                           >
-                            {emp.firstName.charAt(0)}{emp.lastName.charAt(0)}
+                            {initials(emp)}
                           </Avatar>
-                          <Typography fontWeight={500}>
-                            {emp.firstName} {emp.lastName}
-                          </Typography>
+                          <Box>
+                            <Typography fontWeight={600}>
+                              {emp.firstName} {emp.lastName}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              Employee ID: {emp.id.slice(0, 8)}
+                            </Typography>
+                          </Box>
                         </Box>
                       </TableCell>
                       <TableCell align="right" sx={{ py: { xs: 1, sm: 2 } }}>
@@ -410,8 +443,10 @@ const EmployeeManagementPage: React.FC<EmployeeManagementPageProps> = ({
                               onClick={() => handleEditEmployee(emp)}
                               size={isSm ? "small" : "medium"}
                               sx={{ 
+                                bgcolor: "primary.light",
                                 '&:hover': {
-                                  backgroundColor: theme.palette.primary.light
+                                  backgroundColor: "primary.main",
+                                  color: "#fff"
                                 }
                               }}
                             >
@@ -424,8 +459,10 @@ const EmployeeManagementPage: React.FC<EmployeeManagementPageProps> = ({
                               onClick={() => handleDeleteEmployee(emp)}
                               size={isSm ? "small" : "medium"}
                               sx={{ 
+                                bgcolor: "error.light",
                                 '&:hover': {
-                                  backgroundColor: theme.palette.error.light
+                                  backgroundColor: "error.main",
+                                  color: "#fff"
                                 }
                               }}
                             >
@@ -619,7 +656,7 @@ const EmployeeManagementPage: React.FC<EmployeeManagementPageProps> = ({
                   mb: 2
                 }}
               >
-                {selectedEmployee?.firstName.charAt(0)}{selectedEmployee?.lastName.charAt(0)}
+                {selectedEmployee ? initials(selectedEmployee) : ""}
               </Avatar>
             </Box>
             

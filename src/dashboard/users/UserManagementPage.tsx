@@ -290,6 +290,11 @@ const UserManagementPage: React.FC<UserManagementPageProps> = ({
     }
   };
 
+  // Add stats
+  const totalUsers = allUsers.length;
+  const totalAdmins = allUsers.filter(u => u.role === "admin").length;
+  const totalCashiers = allUsers.filter(u => u.role === "cashier").length;
+
   return (
     <AppSidebar
       role="admin"
@@ -304,6 +309,45 @@ const UserManagementPage: React.FC<UserManagementPageProps> = ({
         p: isMobile ? 1 : 3,
         width: '100%'
       }}>
+        {/* Stats Section */}
+        <Box sx={{
+          display: "flex",
+          gap: 2,
+          mb: 3,
+          flexWrap: "wrap"
+        }}>
+          <Paper elevation={3} sx={{
+            flex: 1, minWidth: 180, p: 2, display: "flex", alignItems: "center", gap: 2,
+            borderLeft: "5px solid #1976d2", bgcolor: "background.paper"
+          }}>
+            <PersonIcon color="primary" sx={{ fontSize: 36 }} />
+            <Box>
+              <Typography variant="subtitle2" color="text.secondary">Total Users</Typography>
+              <Typography variant="h6" fontWeight={700}>{totalUsers}</Typography>
+            </Box>
+          </Paper>
+          <Paper elevation={3} sx={{
+            flex: 1, minWidth: 180, p: 2, display: "flex", alignItems: "center", gap: 2,
+            borderLeft: "5px solid #43a047", bgcolor: "background.paper"
+          }}>
+            <LockOpenIcon color="success" sx={{ fontSize: 36 }} />
+            <Box>
+              <Typography variant="subtitle2" color="text.secondary">Admins</Typography>
+              <Typography variant="h6" fontWeight={700}>{totalAdmins}</Typography>
+            </Box>
+          </Paper>
+          <Paper elevation={3} sx={{
+            flex: 1, minWidth: 180, p: 2, display: "flex", alignItems: "center", gap: 2,
+            borderLeft: "5px solid #fbc02d", bgcolor: "background.paper"
+          }}>
+            <LockIcon color="warning" sx={{ fontSize: 36 }} />
+            <Box>
+              <Typography variant="subtitle2" color="text.secondary">Cashiers</Typography>
+              <Typography variant="h6" fontWeight={700}>{totalCashiers}</Typography>
+            </Box>
+          </Paper>
+        </Box>
+        
         <Paper sx={{ 
           p: isMobile ? 2 : 3, 
           mb: 3, 
@@ -313,7 +357,8 @@ const UserManagementPage: React.FC<UserManagementPageProps> = ({
           flexWrap: "wrap", 
           gap: 2,
           borderRadius: 3,
-          boxShadow: theme.shadows[2]
+          boxShadow: theme.shadows[2],
+          bgcolor: "background.paper"
         }}>
           <Typography variant="h5" fontWeight={700} sx={{ 
             fontSize: isMobile ? '1.25rem' : '1.5rem',
@@ -321,7 +366,6 @@ const UserManagementPage: React.FC<UserManagementPageProps> = ({
           }}>
             User Management
           </Typography>
-          
           <Box sx={{ 
             display: "flex", 
             alignItems: "center", 
@@ -358,7 +402,11 @@ const UserManagementPage: React.FC<UserManagementPageProps> = ({
               startIcon={<AddIcon />}
               sx={{
                 whiteSpace: 'nowrap',
-                width: isMobile ? '100%' : 'auto'
+                width: isMobile ? '100%' : 'auto',
+                borderRadius: 2,
+                fontWeight: 600,
+                bgcolor: "primary.main",
+                ":hover": { bgcolor: "primary.dark" }
               }}
             >
               {isMobile ? 'Add' : 'Add New User'}
@@ -485,13 +533,15 @@ const UserManagementPage: React.FC<UserManagementPageProps> = ({
         maxWidth="xs" 
         fullWidth
         fullScreen={isMobile}
+        PaperProps={{ sx: { borderRadius: 3 } }}
       >
         <DialogTitle sx={{ 
           bgcolor: theme.palette.primary.main,
           color: theme.palette.primary.contrastText,
           display: 'flex',
           alignItems: 'center',
-          gap: 1
+          gap: 1,
+          fontWeight: 700
         }}>
           <AddIcon /> Add New User
         </DialogTitle>
@@ -503,6 +553,8 @@ const UserManagementPage: React.FC<UserManagementPageProps> = ({
             value={newUser.firstName}
             onChange={e => setNewUser({ ...newUser, firstName: e.target.value })}
             required
+            inputProps={{ maxLength: 30 }}
+            helperText="Enter the user's first name"
           />
           <TextField
             label="Last Name"
@@ -511,6 +563,8 @@ const UserManagementPage: React.FC<UserManagementPageProps> = ({
             value={newUser.lastName}
             onChange={e => setNewUser({ ...newUser, lastName: e.target.value })}
             required
+            inputProps={{ maxLength: 30 }}
+            helperText="Enter the user's last name"
           />
           <TextField
             label="Username"
@@ -519,6 +573,8 @@ const UserManagementPage: React.FC<UserManagementPageProps> = ({
             value={newUser.username}
             onChange={e => setNewUser({ ...newUser, username: e.target.value })}
             required
+            inputProps={{ maxLength: 20 }}
+            helperText="Choose a unique username"
           />
           <TextField
             label="Password"
@@ -528,6 +584,8 @@ const UserManagementPage: React.FC<UserManagementPageProps> = ({
             value={newUser.password}
             onChange={e => setNewUser({ ...newUser, password: e.target.value })}
             required
+            inputProps={{ maxLength: 20 }}
+            helperText="Set a secure password"
           />
           <Select
             label="Role"
@@ -576,13 +634,15 @@ const UserManagementPage: React.FC<UserManagementPageProps> = ({
         maxWidth="xs" 
         fullWidth
         fullScreen={isMobile}
+        PaperProps={{ sx: { borderRadius: 3 } }}
       >
         <DialogTitle sx={{ 
           bgcolor: theme.palette.primary.main,
           color: theme.palette.primary.contrastText,
           display: 'flex',
           alignItems: 'center',
-          gap: 1
+          gap: 1,
+          fontWeight: 700
         }}>
           <EditIcon /> Edit User
         </DialogTitle>
@@ -594,6 +654,8 @@ const UserManagementPage: React.FC<UserManagementPageProps> = ({
             value={editUser?.firstName || ""}
             onChange={e => setEditUser(editUser ? { ...editUser, firstName: e.target.value } : null)}
             required
+            inputProps={{ maxLength: 30 }}
+            helperText="Edit the user's first name"
           />
           <TextField
             label="Last Name"
@@ -602,6 +664,8 @@ const UserManagementPage: React.FC<UserManagementPageProps> = ({
             value={editUser?.lastName || ""}
             onChange={e => setEditUser(editUser ? { ...editUser, lastName: e.target.value } : null)}
             required
+            inputProps={{ maxLength: 30 }}
+            helperText="Edit the user's last name"
           />
           <TextField
             label="Username"
@@ -610,6 +674,8 @@ const UserManagementPage: React.FC<UserManagementPageProps> = ({
             value={editUser?.username || ""}
             onChange={e => setEditUser(editUser ? { ...editUser, username: e.target.value } : null)}
             required
+            inputProps={{ maxLength: 20 }}
+            helperText="Edit the username"
           />
           <Select
             label="Role"
@@ -657,13 +723,15 @@ const UserManagementPage: React.FC<UserManagementPageProps> = ({
         onClose={() => setDeleteDialogOpen(false)} 
         maxWidth="sm" 
         fullWidth
+        PaperProps={{ sx: { borderRadius: 3 } }}
       >
         <DialogTitle sx={{ 
           bgcolor: theme.palette.error.main,
           color: theme.palette.error.contrastText,
           display: 'flex',
           alignItems: 'center',
-          gap: 1
+          gap: 1,
+          fontWeight: 700
         }}>
           <DeleteIcon /> Confirm Delete
         </DialogTitle>
@@ -673,7 +741,7 @@ const UserManagementPage: React.FC<UserManagementPageProps> = ({
               <PersonIcon />
             </Avatar>
             <Box>
-              <Typography variant="subtitle1">
+              <Typography variant="subtitle1" fontWeight={600}>
                 {userToDelete?.firstName} {userToDelete?.lastName}
               </Typography>
               <Typography variant="body2" color="text.secondary">
@@ -756,23 +824,29 @@ const UserTable: React.FC<UserTableProps> = ({
       sx={{ 
         borderRadius: 3, 
         boxShadow: theme.shadows[1],
-        overflowX: 'auto'
+        overflowX: 'auto',
+        border: "1px solid",
+        borderColor: "divider",
+        bgcolor: "background.paper"
       }}
     >
       <Table sx={{ minWidth: 650 }} size={isMobile ? 'small' : 'medium'}>
         <TableHead sx={{ bgcolor: theme.palette.grey[100] }}>
           <TableRow>
-            {!isMobile && <TableCell>Avatar</TableCell>}
-            <TableCell>Name</TableCell>
-            {!isMobile && <TableCell>Username</TableCell>}
-            <TableCell>Role</TableCell>
-            <TableCell>Status</TableCell>
-            <TableCell align="right">Actions</TableCell>
+            {!isMobile && <TableCell sx={{ fontWeight: 700 }}>Avatar</TableCell>}
+            <TableCell sx={{ fontWeight: 700 }}>Name</TableCell>
+            {!isMobile && <TableCell sx={{ fontWeight: 700 }}>Username</TableCell>}
+            <TableCell sx={{ fontWeight: 700 }}>Role</TableCell>
+            <TableCell sx={{ fontWeight: 700 }}>Status</TableCell>
+            <TableCell sx={{ fontWeight: 700 }} align="right">Actions</TableCell>
           </TableRow>
         </TableHead>
         <TableBody>
           {users.map(user => (
-            <TableRow key={user.id} hover>
+            <TableRow key={user.id} hover sx={{
+              transition: "background 0.2s",
+              "&:hover": { bgcolor: "action.selected" }
+            }}>
               {!isMobile && (
                 <TableCell>
                   <Avatar sx={{ bgcolor: theme.palette.primary.main }}>
@@ -781,7 +855,7 @@ const UserTable: React.FC<UserTableProps> = ({
                 </TableCell>
               )}
               <TableCell>
-                <Typography fontWeight={500}>
+                <Typography fontWeight={600}>
                   {user.firstName} {user.lastName}
                 </Typography>
                 {isMobile && (
@@ -796,6 +870,7 @@ const UserTable: React.FC<UserTableProps> = ({
                   label={user.role} 
                   size="small"
                   color={user.role === 'admin' ? 'primary' : 'default'}
+                  sx={{ fontWeight: 600 }}
                 />
               </TableCell>
               <TableCell>
@@ -804,38 +879,44 @@ const UserTable: React.FC<UserTableProps> = ({
                   color={getStatusColor(user.status)}
                   size="small"
                   icon={getStatusIcon(user.status) ?? undefined}
+                  sx={{ fontWeight: 600 }}
                 />
               </TableCell>
               <TableCell align="right" sx={{ whiteSpace: 'nowrap' }}>
-                {showAccept && onAccept && (
-                  <Tooltip title="Accept">
+                <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 1 }}>
+                  {showAccept && onAccept && (
+                    <Tooltip title="Accept">
+                      <IconButton 
+                        color="success" 
+                        onClick={() => onAccept(user.id)}
+                        size={isMobile ? 'small' : 'medium'}
+                        sx={{ bgcolor: "success.light", ":hover": { bgcolor: "success.main", color: "#fff" } }}
+                      >
+                        <CheckCircleIcon fontSize={isMobile ? 'small' : 'medium'} />
+                      </IconButton>
+                    </Tooltip>
+                  )}
+                  <Tooltip title="Edit">
                     <IconButton 
-                      color="success" 
-                      onClick={() => onAccept(user.id)}
+                      color="primary" 
+                      onClick={() => onEdit(user)}
                       size={isMobile ? 'small' : 'medium'}
+                      sx={{ bgcolor: "primary.light", ":hover": { bgcolor: "primary.main", color: "#fff" } }}
                     >
-                      <CheckCircleIcon fontSize={isMobile ? 'small' : 'medium'} />
+                      <EditIcon fontSize={isMobile ? 'small' : 'medium'} />
                     </IconButton>
                   </Tooltip>
-                )}
-                <Tooltip title="Edit">
-                  <IconButton 
-                    color="primary" 
-                    onClick={() => onEdit(user)}
-                    size={isMobile ? 'small' : 'medium'}
-                  >
-                    <EditIcon fontSize={isMobile ? 'small' : 'medium'} />
-                  </IconButton>
-                </Tooltip>
-                <Tooltip title="Delete">
-                  <IconButton 
-                    color="error" 
-                    onClick={() => onDelete(user)}
-                    size={isMobile ? 'small' : 'medium'}
-                  >
-                    <DeleteIcon fontSize={isMobile ? 'small' : 'medium'} />
-                  </IconButton>
-                </Tooltip>
+                  <Tooltip title="Delete">
+                    <IconButton 
+                      color="error" 
+                      onClick={() => onDelete(user)}
+                      size={isMobile ? 'small' : 'medium'}
+                      sx={{ bgcolor: "error.light", ":hover": { bgcolor: "error.main", color: "#fff" } }}
+                    >
+                      <DeleteIcon fontSize={isMobile ? 'small' : 'medium'} />
+                    </IconButton>
+                  </Tooltip>
+                </Box>
               </TableCell>
             </TableRow>
           ))}

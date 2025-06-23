@@ -24,7 +24,8 @@ import {
   Tab,
   Stack,
   useMediaQuery,
-  useTheme
+  useTheme,
+  Autocomplete
 } from "@mui/material";
 import {
   Edit as EditIcon,
@@ -49,6 +50,12 @@ interface Service {
   name: string;
   description: string;
   prices: { [variety: string]: number };
+  chemicals?: {
+    [chemicalId: string]: {
+      name: string;
+      usage: { [variety: string]: number }; // e.g. { small: 120, medium: 150, ... }
+    }
+  };
 }
 
 interface ServiceManagementPageProps {
@@ -58,6 +65,13 @@ interface ServiceManagementPageProps {
   lastName?: string;
 }
 
+// Fix: define a type for chemicals used in service dialog
+type ServiceChemical = {
+  chemicalId: string;
+  name: string;
+  usage: { [variety: string]: number };
+};
+
 const peso = (v: number) => `₱${v.toLocaleString()}`;
 
 const getServices = async (): Promise<Service[]> => {
@@ -65,13 +79,19 @@ const getServices = async (): Promise<Service[]> => {
   return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Service[];
 };
 const addService = async (service: Omit<Service, "id">) => {
-  await addDoc(collection(db, "services"), service);
+  // Ensure chemicals is included if present
+  await addDoc(collection(db, "services"), {
+    ...service,
+    chemicals: service.chemicals ? service.chemicals : undefined
+  });
 };
 const updateService = async (service: Service) => {
+  // Ensure chemicals is included if present
   await updateDoc(doc(db, "services", service.id), {
     name: service.name,
     description: service.description,
-    prices: service.prices
+    prices: service.prices,
+    chemicals: service.chemicals ? service.chemicals : undefined
   });
 };
 const deleteService = async (id: string) => {
@@ -97,6 +117,9 @@ const ServiceManagementPage: React.FC<ServiceManagementPageProps> = ({
   const [snackbar, setSnackbar] = useState({ open: false, message: "", severity: "success" as "success" | "error" });
   const [search, setSearch] = useState("");
   const [varietyTab, setVarietyTab] = useState(0); // 0 = All, 1... = per variety
+  const [chemicals, setChemicals] = useState<{ id: string; name: string }[]>([]);
+  const [newServiceChemicals, setNewServiceChemicals] = useState<ServiceChemical[]>([]);
+  const [editServiceChemicals, setEditServiceChemicals] = useState<ServiceChemical[]>([]);
 
   const theme = useTheme();
   const isSm = useMediaQuery(theme.breakpoints.down("sm"));
@@ -104,10 +127,16 @@ const ServiceManagementPage: React.FC<ServiceManagementPageProps> = ({
 
   useEffect(() => {
     fetchServices();
+    fetchChemicals();
   }, []);
 
   const fetchServices = async () => {
     setServices(await getServices());
+  };
+
+  const fetchChemicals = async () => {
+    const snapshot = await getDocs(collection(db, "chemicals"));
+    setChemicals(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as { id: string; name: string }[]);
   };
 
   // Filter by search and variety
@@ -123,10 +152,19 @@ const ServiceManagementPage: React.FC<ServiceManagementPageProps> = ({
 
   const handleAddService = async () => {
     try {
-      await addService(newService);
+      await addService({
+        ...newService,
+        chemicals: Object.fromEntries(
+          newServiceChemicals.map(c => [
+            c.chemicalId,
+            { name: c.name, usage: c.usage }
+          ])
+        )
+      });
       setSnackbar({ open: true, message: "Service added!", severity: "success" });
       setAddDialogOpen(false);
       setNewService({ name: "", description: "", prices: VARIETIES.reduce((acc, v) => ({ ...acc, [v.key]: 0 }), {}) });
+      setNewServiceChemicals([]);
       fetchServices();
     } catch {
       setSnackbar({ open: true, message: "Failed to add service", severity: "error" });
@@ -135,16 +173,34 @@ const ServiceManagementPage: React.FC<ServiceManagementPageProps> = ({
 
   const handleEditService = (service: Service) => {
     setSelectedService(service);
+    setEditServiceChemicals(
+      service.chemicals
+        ? Object.entries(service.chemicals).map(([chemicalId, c]) => ({
+            chemicalId,
+            name: c.name,
+            usage: c.usage
+          }))
+        : []
+    );
     setEditDialogOpen(true);
   };
 
   const handleUpdateService = async () => {
     if (!selectedService) return;
     try {
-      await updateService(selectedService);
+      await updateService({
+        ...selectedService,
+        chemicals: Object.fromEntries(
+          editServiceChemicals.map(c => [
+            c.chemicalId,
+            { name: c.name, usage: c.usage }
+          ])
+        )
+      });
       setSnackbar({ open: true, message: "Service updated!", severity: "success" });
       setEditDialogOpen(false);
       setSelectedService(null);
+      setEditServiceChemicals([]);
       fetchServices();
     } catch {
       setSnackbar({ open: true, message: "Failed to update service", severity: "error" });
@@ -169,6 +225,23 @@ const ServiceManagementPage: React.FC<ServiceManagementPageProps> = ({
     }
   };
 
+  // Helper: convert Autocomplete value (array of {id, name}) to ServiceChemical[]
+  function handleChemicalsChange(
+    value: { id: string; name: string }[],
+    prev: ServiceChemical[]
+  ): ServiceChemical[] {
+    return value.map(opt => {
+      const found = prev.find(c => c.chemicalId === opt.id);
+      return found
+        ? found
+        : { chemicalId: opt.id, name: opt.name, usage: {} };
+    });
+  }
+
+  // Stats
+  const totalServices = services.length;
+  const totalChemicals = chemicals.length;
+
   return (
     <AppSidebar
       role="admin"
@@ -177,7 +250,47 @@ const ServiceManagementPage: React.FC<ServiceManagementPageProps> = ({
       onLogout={onLogout}
       onProfile={onProfile}
     >
-      <Box sx={{ maxWidth: 1200, mx: "auto", mt: isSm ? 1 : 3, px: isSm ? 1 : 2, width: "100%" }}>
+      <Box
+        sx={{
+          maxWidth: 1200,
+          mx: "auto",
+          mt: isSm ? 1 : 3,
+          px: isSm ? 1 : 2,
+          width: "100%",
+          minHeight: "calc(100vh - 64px)", // ensures content fills viewport
+          boxSizing: "border-box",
+          transition: "margin-left 0.3s",
+        }}
+      >
+        {/* Stats Section */}
+        <Box sx={{
+          display: "flex",
+          gap: 2,
+          mb: 3,
+          flexWrap: "wrap"
+        }}>
+          <Paper elevation={3} sx={{
+            flex: 1, minWidth: 180, p: 2, display: "flex", alignItems: "center", gap: 2,
+            borderLeft: "5px solid #1976d2", bgcolor: "background.paper"
+          }}>
+            <AddIcon color="primary" sx={{ fontSize: 36 }} />
+            <Box>
+              <Typography variant="subtitle2" color="text.secondary">Total Services</Typography>
+              <Typography variant="h6" fontWeight={700}>{totalServices}</Typography>
+            </Box>
+          </Paper>
+          <Paper elevation={3} sx={{
+            flex: 1, minWidth: 180, p: 2, display: "flex", alignItems: "center", gap: 2,
+            borderLeft: "5px solid #43a047", bgcolor: "background.paper"
+          }}>
+            <SearchIcon color="success" sx={{ fontSize: 36 }} />
+            <Box>
+              <Typography variant="subtitle2" color="text.secondary">Total Chemicals</Typography>
+              <Typography variant="h6" fontWeight={700}>{totalChemicals}</Typography>
+            </Box>
+          </Paper>
+        </Box>
+        {/* Header Section */}
         <Paper
           sx={{
             p: isSm ? 2 : 3,
@@ -227,7 +340,9 @@ const ServiceManagementPage: React.FC<ServiceManagementPageProps> = ({
                 fontWeight: 600,
                 borderRadius: 2,
                 boxShadow: 1,
-                minWidth: isSm ? "100%" : 140
+                minWidth: isSm ? "100%" : 140,
+                bgcolor: "primary.main",
+                ":hover": { bgcolor: "primary.dark" }
               }}
             >
               Add Service
@@ -327,7 +442,8 @@ const ServiceManagementPage: React.FC<ServiceManagementPageProps> = ({
                         color="primary"
                         onClick={() => handleEditService(service)}
                         sx={{
-                          "&:hover": { background: "#e3f2fd" }
+                          bgcolor: "primary.light",
+                          "&:hover": { background: "primary.main", color: "#fff" }
                         }}
                       >
                         <EditIcon />
@@ -338,7 +454,8 @@ const ServiceManagementPage: React.FC<ServiceManagementPageProps> = ({
                         color="error"
                         onClick={() => handleDeleteService(service)}
                         sx={{
-                          "&:hover": { background: "#ffebee" }
+                          bgcolor: "error.light",
+                          "&:hover": { background: "error.main", color: "#fff" }
                         }}
                       >
                         <DeleteIcon />
@@ -415,6 +532,50 @@ const ServiceManagementPage: React.FC<ServiceManagementPageProps> = ({
                 />
               ))}
             </Box>
+            {/* Chemicals Section */}
+            <Typography variant="subtitle2" sx={{ mt: 2 }}>Chemicals Used</Typography>
+            <Autocomplete
+              multiple
+              options={chemicals}
+              getOptionLabel={option => option.name}
+              value={chemicals.filter(opt =>
+                newServiceChemicals.some(c => c.chemicalId === opt.id)
+              )}
+              onChange={(_, value) =>
+                setNewServiceChemicals(handleChemicalsChange(value, newServiceChemicals))
+              }
+              isOptionEqualToValue={(option, value) => option.id === value.id}
+              renderInput={params => <TextField {...params} label="Select Chemicals" />}
+              filterSelectedOptions
+              sx={{ mb: 2 }}
+            />
+            {newServiceChemicals.map((chem, idx) => (
+              <Box key={chem.chemicalId} sx={{ mb: 1, pl: 2 }}>
+                <Typography fontWeight={500}>{chem.name}</Typography>
+                <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
+                  {VARIETIES.map(v => (
+                    <TextField
+                      key={v.key}
+                      label={`${v.label} Usage (ml)`}
+                      type="number"
+                      size="small"
+                      value={chem.usage?.[v.key] ?? ""}
+                      onChange={e => {
+                        const val = Number(e.target.value);
+                        setNewServiceChemicals(arr =>
+                          arr.map((c, i) =>
+                            i === idx
+                              ? { ...c, usage: { ...c.usage, [v.key]: val } }
+                              : c
+                          )
+                        );
+                      }}
+                      sx={{ width: 110 }}
+                    />
+                  ))}
+                </Box>
+              </Box>
+            ))}
           </Stack>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
@@ -494,6 +655,50 @@ const ServiceManagementPage: React.FC<ServiceManagementPageProps> = ({
                 />
               ))}
             </Box>
+            {/* Chemicals Section */}
+            <Typography variant="subtitle2" sx={{ mt: 2 }}>Chemicals Used</Typography>
+            <Autocomplete
+              multiple
+              options={chemicals}
+              getOptionLabel={option => option.name}
+              value={chemicals.filter(opt =>
+                editServiceChemicals.some(c => c.chemicalId === opt.id)
+              )}
+              onChange={(_, value) =>
+                setEditServiceChemicals(handleChemicalsChange(value, editServiceChemicals))
+              }
+              isOptionEqualToValue={(option, value) => option.id === value.id}
+              renderInput={params => <TextField {...params} label="Select Chemicals" />}
+              filterSelectedOptions
+              sx={{ mb: 2 }}
+            />
+            {editServiceChemicals.map((chem, idx) => (
+              <Box key={chem.chemicalId} sx={{ mb: 1, pl: 2 }}>
+                <Typography fontWeight={500}>{chem.name}</Typography>
+                <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
+                  {VARIETIES.map(v => (
+                    <TextField
+                      key={v.key}
+                      label={`${v.label} Usage (ml)`}
+                      type="number"
+                      size="small"
+                      value={chem.usage?.[v.key] ?? ""}
+                      onChange={e => {
+                        const val = Number(e.target.value);
+                        setEditServiceChemicals(arr =>
+                          arr.map((c, i) =>
+                            i === idx
+                              ? { ...c, usage: { ...c.usage, [v.key]: val } }
+                              : c
+                          )
+                        );
+                      }}
+                      sx={{ width: 110 }}
+                    />
+                  ))}
+                </Box>
+              </Box>
+            ))}
           </Stack>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
