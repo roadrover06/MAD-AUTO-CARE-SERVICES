@@ -26,6 +26,7 @@ import MonetizationOnIcon from "@mui/icons-material/MonetizationOn";
 import GroupIcon from "@mui/icons-material/Group";
 import SearchIcon from "@mui/icons-material/Search";
 import RefreshIcon from "@mui/icons-material/Refresh";
+import CalendarTodayIcon from "@mui/icons-material/CalendarToday";
 
 interface Employee {
   id: string;
@@ -55,6 +56,8 @@ const CommissionsPage: React.FC<{
   const [payments, setPayments] = useState<PaymentRecord[]>([]);
   const [search, setSearch] = useState("");
   const [refreshing, setRefreshing] = useState(false);
+  const [dateFrom, setDateFrom] = useState<string>("");
+  const [dateTo, setDateTo] = useState<string>("");
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
 
@@ -71,7 +74,22 @@ const CommissionsPage: React.FC<{
     setRefreshing(false);
   };
 
-  // Aggregate commissions per employee (labor + referrer)
+  // Filter payments by date range
+  const filteredPayments = payments.filter(p => {
+    if (!p.paid) return false;
+    let match = true;
+    if (dateFrom) {
+      const from = new Date(dateFrom).setHours(0, 0, 0, 0);
+      match = match && p.createdAt >= from;
+    }
+    if (dateTo) {
+      const to = new Date(dateTo).setHours(23, 59, 59, 999);
+      match = match && p.createdAt <= to;
+    }
+    return match;
+  });
+
+  // Aggregate commissions per employee (labor + referrer) for filteredPayments
   const commissionMap: {
     [empId: string]: {
       name: string;
@@ -82,8 +100,7 @@ const CommissionsPage: React.FC<{
     };
   } = {};
 
-  payments.forEach((p) => {
-    if (!p.paid) return;
+  filteredPayments.forEach((p) => {
     // Labor commissions
     if (Array.isArray(p.employees)) {
       p.employees.forEach(e => {
@@ -181,7 +198,41 @@ const CommissionsPage: React.FC<{
               View all labor and referrer commissions earned by employees
             </Typography>
           </Box>
-          <Box sx={{ display: "flex", gap: 2 }}>
+          <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap", alignItems: "center" }}>
+            <TextField
+              size="small"
+              placeholder="From"
+              type="date"
+              value={dateFrom}
+              onChange={e => setDateFrom(e.target.value)}
+              InputLabelProps={{ shrink: true }}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <CalendarTodayIcon fontSize="small" color="action" />
+                  </InputAdornment>
+                ),
+                sx: { borderRadius: 2, background: "#f5f5f5" }
+              }}
+              sx={{ minWidth: 140 }}
+            />
+            <TextField
+              size="small"
+              placeholder="To"
+              type="date"
+              value={dateTo}
+              onChange={e => setDateTo(e.target.value)}
+              InputLabelProps={{ shrink: true }}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <CalendarTodayIcon fontSize="small" color="action" />
+                  </InputAdornment>
+                ),
+                sx: { borderRadius: 2, background: "#f5f5f5" }
+              }}
+              sx={{ minWidth: 140 }}
+            />
             <TextField
               size="small"
               placeholder="Search employee..."
@@ -195,7 +246,7 @@ const CommissionsPage: React.FC<{
                 ),
                 sx: { borderRadius: 2, background: "#f5f5f5" }
               }}
-              sx={{ minWidth: 220 }}
+              sx={{ minWidth: 180 }}
             />
             <Button
               variant="outlined"
