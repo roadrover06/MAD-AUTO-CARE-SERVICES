@@ -198,6 +198,11 @@ const PaymentServicesPage: React.FC<PaymentServicesPageProps> = ({
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
 
+  // --- Custom createdAt fields ---
+  const [useCustomDateTime, setUseCustomDateTime] = useState(false);
+  const [customDate, setCustomDate] = useState<string>("");
+  const [customTime, setCustomTime] = useState<string>("");
+
   useEffect(() => {
     fetchServices();
     fetchEmployees();
@@ -485,6 +490,15 @@ const PaymentServicesPage: React.FC<PaymentServicesPageProps> = ({
         ...manualServiceDisplayNames
       ];
 
+      // --- createdAt logic ---
+      let createdAt: number;
+      if (!payingRecordId && useCustomDateTime && customDate && customTime) {
+        const ts = getCustomCreatedAtTimestamp(customDate, customTime);
+        createdAt = ts ?? Date.now();
+      } else {
+        createdAt = Date.now();
+      }
+
       // --- FIX: Always use effective cashier info ---
       const record: PaymentRecord = {
         customerName,
@@ -500,10 +514,11 @@ const PaymentServicesPage: React.FC<PaymentServicesPageProps> = ({
         cashierFullName: [effectiveFirstName, effectiveLastName].filter(Boolean).join(" "),
         employees,
         ...(referrerObj ? { referrer: referrerObj } : {}),
-        createdAt: Date.now(),
+        createdAt,
         paid: !payLater,
+        // --- FIX: Always include paymentMethod, even for unpaid ---
+        paymentMethod: form.paymentMethod,
         ...(payLater ? {} : { 
-          paymentMethod: form.paymentMethod,
           amountTendered: typeof amountTendered === "number" ? amountTendered : undefined,
           change: typeof amountTendered === "number" ? amountTendered - totalPrice : undefined
         }),
@@ -519,7 +534,7 @@ const PaymentServicesPage: React.FC<PaymentServicesPageProps> = ({
             paymentMethod: form.paymentMethod,
             amountTendered: typeof amountTendered === "number" ? amountTendered : undefined,
             change: typeof amountTendered === "number" ? amountTendered - totalPrice : undefined,
-            createdAt: Date.now()
+            createdAt: Date.now() // always use now for "Pay Now"
           });
           for (const sid of form.serviceIds) {
             await decreaseChemicalsStock(sid, form.variety);
@@ -607,6 +622,9 @@ const PaymentServicesPage: React.FC<PaymentServicesPageProps> = ({
       setAmountTendered("");
       setChange(0);
       setManualServices([]);
+      setUseCustomDateTime(false); // reset custom date/time
+      setCustomDate("");
+      setCustomTime("");
       fetchRecords();
     } catch (err) {
       setSnackbar({ open: true, message: "Failed to record payment", severity: "error" });
@@ -823,6 +841,18 @@ const PaymentServicesPage: React.FC<PaymentServicesPageProps> = ({
       // No need to remove handler for this simple case
     };
   }, []);
+
+  // Helper: Convert custom date/time (YYYY-MM-DD, HH:mm) to PH timestamp (Asia/Manila)
+  function getCustomCreatedAtTimestamp(dateStr: string, timeStr: string): number | null {
+    if (!dateStr || !timeStr) return null;
+    // Compose ISO string in PH timezone
+    // PH is UTC+8
+    const [year, month, day] = dateStr.split("-").map(Number);
+    const [hour, minute] = timeStr.split(":").map(Number);
+    // Create a Date object in PH time
+    const date = new Date(Date.UTC(year, month - 1, day, hour - 8, minute)); // subtract 8 hours to get UTC
+    return date.getTime() + 8 * 60 * 60 * 1000; // adjust back to PH time
+  }
 
   return (
     <AppSidebar
@@ -1445,7 +1475,45 @@ const PaymentServicesPage: React.FC<PaymentServicesPageProps> = ({
               ))}
             </Box>
           )}
-          {/* REMOVE Payment Method select from here */}
+          {/* --- Custom createdAt controls --- */
+          }
+          <Box sx={{ mt: 2, mb: 1 }}>
+            <Button
+              variant={useCustomDateTime ? "contained" : "outlined"}
+              color="info"
+              size="small"
+              onClick={() => setUseCustomDateTime(v => !v)}
+              sx={{ mb: 1 }}
+            >
+              {useCustomDateTime ? "Using Custom Date/Time" : "Set Custom Date/Time"}
+            </Button>
+            {useCustomDateTime && (
+              <Box sx={{ display: "flex", gap: 2, alignItems: "center", mt: 1 }}>
+                <TextField
+                  label="Date"
+                  type="date"
+                  size="small"
+                  value={customDate}
+                  onChange={e => setCustomDate(e.target.value)}
+                  InputLabelProps={{ shrink: true }}
+                  sx={{ minWidth: 140 }}
+                />
+                <TextField
+                  label="Time"
+                  type="time"
+                  size="small"
+                  value={customTime}
+                  onChange={e => setCustomTime(e.target.value)}
+                  InputLabelProps={{ shrink: true }}
+                  sx={{ minWidth: 120 }}
+                  inputProps={{ step: 60 }} // minute steps
+                />
+                <Typography variant="caption" color="text.secondary">
+                  PH Time (Asia/Manila)
+                </Typography>
+              </Box>
+            )}
+          </Box>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setAddDialogOpen(false)}>Cancel</Button>
