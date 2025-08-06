@@ -15,6 +15,7 @@ import SalesTransactionsPage from "./dashboard/SalesTransactionsPage";
 import ChemicalsInventoryPage from "./dashboard/ChemicalsInventoryPage";
 import ReportsAnalyticsPage from "./dashboard/ReportsAnalyticsPage";
 import CommissionsPage from "./dashboard/CommissionsPage";
+import SystemLogsPage from "./dashboard/SystemLogsPage";
 
 // Helper to check authentication from localStorage
 function isAuthenticated() {
@@ -116,6 +117,25 @@ function App() {
           }
         />
         <Route
+          path="/cashier/employees"
+          element={
+            <ProtectedRoute>
+              <EmployeeManagementPage
+                onLogout={() => {
+                  localStorage.removeItem("role");
+                  localStorage.removeItem("userInfo");
+                  window.location.href = "/login";
+                }}
+                onProfile={() => {
+                  window.location.href = "/profile";
+                }}
+                firstName={JSON.parse(localStorage.getItem("userInfo") || "{}").firstName || ""}
+                lastName={JSON.parse(localStorage.getItem("userInfo") || "{}").lastName || ""}
+              />
+            </ProtectedRoute>
+          }
+        />
+        <Route
           path="/admin/services"
           element={
             <ProtectedRoute>
@@ -189,6 +209,14 @@ function App() {
                 firstName={JSON.parse(localStorage.getItem("userInfo") || "{}").firstName || ""}
                 lastName={JSON.parse(localStorage.getItem("userInfo") || "{}").lastName || ""}
               />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/system-logs"
+          element={
+            <ProtectedRoute>
+              <SystemLogsPage />
             </ProtectedRoute>
           }
         />

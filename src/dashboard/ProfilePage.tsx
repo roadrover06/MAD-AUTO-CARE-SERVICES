@@ -25,6 +25,10 @@ import { motion } from "framer-motion"; // Import motion for animations
 import { saveCredentials } from "../firebase/firestoreHelpers"; // Assuming this path is correct
 import { setLocal, getAllLocal, queueSync } from "../utils/offlineSync";
 import { isOnline } from "../firebase/firebase";
+import { doc, updateDoc } from "firebase/firestore";
+import { db } from "../firebase/firebase";
+import { collection, query, where, getDocs } from "firebase/firestore";
+import bcrypt from "bcryptjs"; // Import bcrypt for password hashing
 
 // Custom Material-UI Theme for consistent styling (copied from other forms)
 const theme = createTheme({
@@ -281,6 +285,16 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ user, onBack }) => {
   const currentTheme = useTheme(); // Use currentTheme to access theme properties
   const isMobile = useMediaQuery(currentTheme.breakpoints.down("sm"));
 
+  // Helper to get Firestore user doc ID by username
+  const getUserDocIdByUsername = async (username: string) => {
+    const q = query(collection(db, "users"), where("username", "==", username));
+    const snap = await getDocs(q);
+    if (!snap.empty) {
+      return snap.docs[0].id;
+    }
+    return null;
+  };
+
   // Profile update (username, firstName, lastName)
   const handleProfileUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -288,11 +302,21 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ user, onBack }) => {
     setError("");
     setMessage(""); // Clear previous success message
     try {
-      // --- OFFLINE/ONLINE LOGIC ---
       if (isOnline()) {
-        // TODO: Replace with actual Firestore update logic for user profile
-        // For now, simulate an API call
-        await new Promise(resolve => setTimeout(resolve, 800));
+        // Find the correct Firestore document ID by username
+        let docId: string | undefined = user.id;
+        if (!docId) {
+          const foundId = await getUserDocIdByUsername(user.username);
+          if (foundId) {
+            docId = foundId;
+          }
+        }
+        if (!docId) throw new Error("User document not found in Firestore.");
+        await updateDoc(doc(db, "users", docId), {
+          firstName,
+          lastName,
+          username,
+        });
         localStorage.setItem("userInfo", JSON.stringify({
           ...user,
           username,
@@ -344,14 +368,30 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ user, onBack }) => {
       return;
     }
     try {
+      // Hash the password before saving
+      const hashedPassword = await bcrypt.hash(newPassword, 10);
+
       if (isOnline()) {
-        await saveCredentials(user.username, newPassword, user.role);
+        // Find the correct Firestore document ID by username
+        let docId = user.id;
+        if (!docId) {
+          const foundId = await getUserDocIdByUsername(user.username);
+          docId = foundId !== null ? foundId : undefined;
+        }
+        if (!docId) throw new Error("User document not found in Firestore.");
+        await updateDoc(doc(db, "users", docId), {
+          password: hashedPassword
+        });
+        localStorage.setItem("userInfo", JSON.stringify({
+          ...user,
+          password: hashedPassword
+        }));
       } else {
         // Ensure the offline user object has an 'id' field for IndexedDB keyPath
         let offlineUser: any = {
           ...user,
           username,
-          password: newPassword,
+          password: hashedPassword,
         };
         if (!offlineUser.id) {
           offlineUser.id = user.id || user.username;

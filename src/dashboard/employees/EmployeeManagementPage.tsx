@@ -562,11 +562,14 @@ const EmployeeManagementPage: React.FC<EmployeeManagementPageProps> = ({
     hover: { scale: 1.03, boxShadow: currentTheme.shadows[6] }
   };
 
+  // Get role from localStorage
+  const role = (localStorage.getItem("role") as "admin" | "cashier") || "cashier";
+
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
       <AppSidebar
-        role="admin"
+        role={role}
         firstName={firstName}
         lastName={lastName}
         onLogout={onLogout}
@@ -751,7 +754,7 @@ const EmployeeManagementPage: React.FC<EmployeeManagementPageProps> = ({
             variants={itemVariants}
           >
             <Paper
-              elevation={4} // Stronger shadow for the table
+              elevation={4}
               sx={{
                 borderRadius: 3,
                 boxShadow: currentTheme.shadows[4], // Consistent shadow
@@ -871,27 +874,29 @@ const EmployeeManagementPage: React.FC<EmployeeManagementPageProps> = ({
                                   <EditIcon fontSize={isSm ? "small" : "medium"} />
                                 </IconButton>
                               </Tooltip>
-                              <Tooltip title="Delete Employee">
-                                <IconButton
-                                  color="error"
-                                  onClick={() => handleDeleteEmployee(emp)}
-                                  size={isSm ? "small" : "medium"}
-                                  sx={{ 
-                                    bgcolor: currentTheme.palette.error.light,
-                                    color: currentTheme.palette.error.dark,
-                                    boxShadow: currentTheme.shadows[1],
-                                    transition: 'transform 0.2s',
-                                    '&:hover': {
-                                      backgroundColor: currentTheme.palette.error.main,
-                                      color: currentTheme.palette.common.white,
-                                      transform: 'scale(1.1)',
-                                      boxShadow: currentTheme.shadows[3],
-                                    }
-                                  }}
-                                >
-                                  <DeleteIcon fontSize={isSm ? "small" : "medium"} />
-                                </IconButton>
-                              </Tooltip>
+                              {role === "admin" && (
+                                <Tooltip title="Delete Employee">
+                                  <IconButton
+                                    color="error"
+                                    onClick={() => handleDeleteEmployee(emp)}
+                                    size={isSm ? "small" : "medium"}
+                                    sx={{ 
+                                      bgcolor: currentTheme.palette.error.light,
+                                      color: currentTheme.palette.error.dark,
+                                      boxShadow: currentTheme.shadows[1],
+                                      transition: 'transform 0.2s',
+                                      '&:hover': {
+                                        backgroundColor: currentTheme.palette.error.main,
+                                        color: currentTheme.palette.common.white,
+                                        transform: 'scale(1.1)',
+                                        boxShadow: currentTheme.shadows[3],
+                                      }
+                                    }}
+                                  >
+                                    <DeleteIcon fontSize={isSm ? "small" : "medium"} />
+                                  </IconButton>
+                                </Tooltip>
+                              )}
                             </Stack>
                           </TableCell>
                         </TableRow>
@@ -1167,96 +1172,98 @@ const EmployeeManagementPage: React.FC<EmployeeManagementPageProps> = ({
         </Dialog>
 
         {/* Delete Employee Confirmation Dialog */}
-        <Dialog
-          open={deleteDialogOpen}
-          onClose={() => setDeleteDialogOpen(false)}
-          maxWidth="xs" // Kept as xs for a more focused confirmation
-          fullWidth
-          fullScreen={isSm} // Full screen on small mobile
-          PaperProps={{
-            sx: { 
-              borderRadius: 3,
-              p: { xs: 1, sm: 2 },
-              boxShadow: currentTheme.shadows[8],
-            }
-          }}
-        >
-          <DialogTitle sx={{ 
-            fontWeight: 700, 
-            pb: 1,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            color: currentTheme.palette.error.main, // Error color for title
-            borderBottom: `1px solid ${currentTheme.palette.divider}`,
-            mb: 2,
-          }}>
-            Confirm Deletion
-            <IconButton 
-              onClick={() => setDeleteDialogOpen(false)}
-              sx={{ color: currentTheme.palette.text.secondary }}
-            >
-              <CloseIcon />
-            </IconButton>
-          </DialogTitle>
-          <DialogContent dividers={false} sx={{ py: 3 }}>
-            <Box sx={{ 
-              display: "flex", 
-              flexDirection: "column", 
+        {role === "admin" && (
+          <Dialog
+            open={deleteDialogOpen}
+            onClose={() => setDeleteDialogOpen(false)}
+            maxWidth="xs"
+            fullWidth
+            fullScreen={isSm}
+            PaperProps={{
+              sx: { 
+                borderRadius: 3,
+                p: { xs: 1, sm: 2 },
+                boxShadow: currentTheme.shadows[8],
+              }
+            }}
+          >
+            <DialogTitle sx={{ 
+              fontWeight: 700, 
+              pb: 1,
+              display: "flex",
               alignItems: "center",
-              textAlign: "center",
-              gap: 2
+              justifyContent: "space-between",
+              color: currentTheme.palette.error.main, // Error color for title
+              borderBottom: `1px solid ${currentTheme.palette.divider}`,
+              mb: 2,
             }}>
-              <Avatar
+              Confirm Deletion
+              <IconButton 
+                onClick={() => setDeleteDialogOpen(false)}
+                sx={{ color: currentTheme.palette.text.secondary }}
+              >
+                <CloseIcon />
+              </IconButton>
+            </DialogTitle>
+            <DialogContent dividers={false} sx={{ py: 3 }}>
+              <Box sx={{ 
+                display: "flex", 
+                flexDirection: "column", 
+                alignItems: "center",
+                textAlign: "center",
+                gap: 2
+              }}>
+                <Avatar
+                  sx={{ 
+                    width: 64, 
+                    height: 64,
+                    bgcolor: currentTheme.palette.error.light,
+                    color: currentTheme.palette.error.dark,
+                    mb: 2,
+                    boxShadow: currentTheme.shadows[2],
+                  }}
+                >
+                  <DeleteIcon fontSize="large" />
+                </Avatar>
+                <Typography variant="h6" fontWeight={600} color={currentTheme.palette.text.primary}>
+                  Delete {selectedEmployee?.firstName} {selectedEmployee?.lastName}?
+                </Typography>
+                <DialogContentText variant="body2" color="text.secondary">
+                  This action cannot be undone. All associated data will be permanently removed.
+                </DialogContentText>
+              </Box>
+            </DialogContent>
+            <DialogActions sx={{ px: 3, pb: 2 }}>
+              <Button 
+                onClick={() => setDeleteDialogOpen(false)} 
+                variant="outlined"
+                color="inherit"
                 sx={{ 
-                  width: 64, 
-                  height: 64,
-                  bgcolor: currentTheme.palette.error.light,
-                  color: currentTheme.palette.error.dark,
-                  mb: 2,
-                  boxShadow: currentTheme.shadows[2],
+                  borderRadius: 2,
+                  px: 3,
+                  color: currentTheme.palette.text.secondary
                 }}
               >
-                <DeleteIcon fontSize="large" />
-              </Avatar>
-              <Typography variant="h6" fontWeight={600} color={currentTheme.palette.text.primary}>
-                Delete {selectedEmployee?.firstName} {selectedEmployee?.lastName}?
-              </Typography>
-              <DialogContentText variant="body2" color="text.secondary">
-                This action cannot be undone. All associated data will be permanently removed.
-              </DialogContentText>
-            </Box>
-          </DialogContent>
-          <DialogActions sx={{ px: 3, pb: 2 }}>
-            <Button 
-              onClick={() => setDeleteDialogOpen(false)} 
-              variant="outlined"
-              color="inherit"
-              sx={{ 
-                borderRadius: 2,
-                px: 3,
-                color: currentTheme.palette.text.secondary
-              }}
-            >
-              Cancel
-            </Button>
-            <Button
-              color="error"
-              variant="contained"
-              onClick={confirmDeleteEmployee}
-              sx={{ 
-                borderRadius: 2, 
-                fontWeight: 600,
-                px: 3,
-                bgcolor: currentTheme.palette.error.main,
-                ":hover": { bgcolor: currentTheme.palette.error.dark },
-              }}
-              startIcon={<DeleteIcon />}
-            >
-              Delete Permanently
-            </Button>
-          </DialogActions>
-        </Dialog>
+                Cancel
+              </Button>
+              <Button
+                color="error"
+                variant="contained"
+                onClick={confirmDeleteEmployee}
+                sx={{ 
+                  borderRadius: 2, 
+                  fontWeight: 600,
+                  px: 3,
+                  bgcolor: currentTheme.palette.error.main,
+                  ":hover": { bgcolor: currentTheme.palette.error.dark },
+                }}
+                startIcon={<DeleteIcon />}
+              >
+                Delete Permanently
+              </Button>
+            </DialogActions>
+          </Dialog>
+        )}
 
         {/* Snackbar Notifications */}
         <Snackbar

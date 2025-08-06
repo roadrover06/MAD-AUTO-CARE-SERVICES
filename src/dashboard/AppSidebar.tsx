@@ -35,6 +35,7 @@ import {
   Build as BuildIcon,
   Payment as PaymentIcon,
   MonetizationOn as MonetizationOnIcon,
+  ListAlt as ListAltIcon, // <-- Add this import for system logs icon
 } from "@mui/icons-material";
 import logo from '../assets/logos/carwash-logo.png';
 import { useNavigate } from "react-router-dom";
@@ -60,7 +61,8 @@ const adminMenu = [
       { text: "Reports & Analytics", icon: <BarChart />, path: "/admin/reports" },
       { text: "Sales Transactions", icon: <Receipt />, path: "/admin/sales-transactions" },
       { text: "Loyalty Program", icon: <People />, path: "/admin/loyalty-program" },
-      { text: "Commissions", icon: <MonetizationOnIcon />, path: "/commissions" }
+      { text: "Commissions", icon: <MonetizationOnIcon />, path: "/commissions" },
+      { text: "System Logs", icon: <ListAltIcon />, path: "/admin/system-logs" }, // <-- Add this line
     ]
   },
   {
@@ -83,7 +85,8 @@ const cashierMenu = [
       { text: "Loyalty Program", icon: <People />, path: "/cashier/loyalty-program" },
       { text: "Sales Transactions", icon: <PointOfSale />, path: "/cashier/sales-transactions" },
       { text: "Daily Summary", icon: <Receipt />, path: "/cashier/daily-summary" },
-      { text: "Commissions", icon: <MonetizationOnIcon />, path: "/commissions" }
+      { text: "Commissions", icon: <MonetizationOnIcon />, path: "/commissions" },
+      { text: "Employee Management", icon: <GroupIcon />, path: "/cashier/employees" }, // <-- Add this line
     ]
   }
 ];

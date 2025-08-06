@@ -37,7 +37,7 @@ import {
   Pagination
 } from "@mui/material";
 import AppSidebar from "./AppSidebar";
-import { collection, getDocs, doc, updateDoc, deleteDoc } from "firebase/firestore";
+import { collection, getDocs, doc, updateDoc, deleteDoc, addDoc, getDoc as getFirestoreDoc } from "firebase/firestore";
 import { db } from "../firebase/firebase";
 import {
   PointOfSale as PointOfSaleIcon,
@@ -471,6 +471,13 @@ const SalesTransactionsPage: React.FC = () => {
   };
 
   // Fix delete logic for offline records
+  const getPHDate = () => {
+    // Returns a JS Date object in PH time (UTC+8)
+    const now = new Date();
+    // Get UTC time + 8 hours
+    return new Date(now.getTime() + (8 - now.getTimezoneOffset() / 60) * 60 * 60 * 1000);
+  };
+
   const confirmDeleteRecords = async () => {
     setDeleting(true);
     try {
@@ -480,13 +487,67 @@ const SalesTransactionsPage: React.FC = () => {
       } else {
         idsToDelete = selectedIds;
       }
+      // --- LOGGING DELETED RECORDS ---
+      // Get user info from localStorage
+      const userInfoRaw = localStorage.getItem("userInfo");
+      let userFullName = "Unknown";
+      let userRole = "Unknown";
+      let username = "";
+      if (userInfoRaw) {
+        try {
+          const userInfo = JSON.parse(userInfoRaw);
+          userFullName = `${userInfo.firstName || ""} ${userInfo.lastName || ""}`.trim();
+          userRole = userInfo.role || "Unknown";
+          username = userInfo.username || "";
+        } catch {}
+      }
+      // If username exists, fetch from users collection for latest info
+      if (username) {
+        try {
+          const userSnap = await getFirestoreDoc(doc(db, "users", username));
+          if (userSnap.exists()) {
+            const userData = userSnap.data();
+            userFullName = `${userData.firstName || ""} ${userData.lastName || ""}`.trim();
+            userRole = userData.role || userRole;
+          }
+        } catch {}
+      }
+      // For each record to delete, log it
       for (const id of idsToDelete) {
         let firestoreExists = false;
+        let deletedRecord: PaymentRecord | undefined;
         try {
           const { getDoc } = await import("firebase/firestore");
           const docSnap = await getDoc(doc(db, "payments", id));
           firestoreExists = docSnap.exists();
+          if (firestoreExists) {
+            deletedRecord = { id, ...docSnap.data() } as PaymentRecord;
+          }
         } catch {}
+        if (!firestoreExists) {
+          // Try to get from local records
+          try {
+            const localRecords = await getAllLocal("payments") as PaymentRecord[] || [];
+            deletedRecord = localRecords.find(r => r.id === id);
+          } catch {}
+        }
+        // Log to systemLogs collection
+        try {
+          await addDoc(collection(db, "systemLogs"), {
+            action: "delete",
+            collection: "payments",
+            deletedRecord: deletedRecord || { id },
+            deletedBy: {
+              name: userFullName,
+              role: userRole,
+            },
+            deletedAt: getPHDate().toISOString(),
+          });
+        } catch (e) {
+          // Logging error is non-fatal
+          console.error("Failed to log deletion:", e);
+        }
+        // --- ACTUAL DELETION ---
         if (firestoreExists) {
           await deleteDoc(doc(db, "payments", id));
           await deleteLocal("payments", id);
