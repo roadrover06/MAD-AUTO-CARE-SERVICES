@@ -1258,12 +1258,12 @@ const UserTable: React.FC<UserTableProps> = ({
   showAccept = false
 }) => {
   const currentTheme = useTheme();
-  
+
   return (
     <TableContainer 
       component={Paper} 
-      elevation={4} // Stronger shadow for the table
-      sx={{ 
+      elevation={4}
+      sx={{
         borderRadius: 3, 
         boxShadow: currentTheme.shadows[4], // Consistent shadow
         overflowX: 'auto',
@@ -1296,13 +1296,13 @@ const UserTable: React.FC<UserTableProps> = ({
               {!isMobile && (
                 <TableCell>
                   <Avatar sx={{ bgcolor: currentTheme.palette.primary.main, width: 48, height: 48, fontSize: 20 }}>
-                    {user.firstName.charAt(0)}{user.lastName.charAt(0)}
+                    {(user.firstName?.charAt(0) || "")}{(user.lastName?.charAt(0) || "")}
                   </Avatar>
                 </TableCell>
               )}
               <TableCell>
                 <Typography fontWeight={600}>
-                  {user.firstName} {user.lastName}
+                  {(user.firstName || "")} {(user.lastName || "")}
                 </Typography>
                 {isMobile && (
                   <Typography variant="body2" color="text.secondary">
@@ -1321,7 +1321,7 @@ const UserTable: React.FC<UserTableProps> = ({
               </TableCell>
               <TableCell>
                 <Chip
-                  label={user.status.charAt(0).toUpperCase() + user.status.slice(1)}
+                  label={user.status?.charAt(0).toUpperCase() + user.status?.slice(1) || ""}
                   color={getStatusColor(user.status)}
                   size="small"
                   icon={getStatusIcon(user.status) ?? undefined}
@@ -1336,7 +1336,7 @@ const UserTable: React.FC<UserTableProps> = ({
                         color="success" 
                         onClick={() => onAccept(user.id)}
                         size={isMobile ? 'small' : 'medium'}
-                        sx={{ 
+                        sx={{
                           bgcolor: currentTheme.palette.success.light, 
                           ":hover": { bgcolor: currentTheme.palette.success.main, color: "#fff" },
                           boxShadow: currentTheme.shadows[1],
@@ -1353,7 +1353,7 @@ const UserTable: React.FC<UserTableProps> = ({
                       color="primary" 
                       onClick={() => onEdit(user)}
                       size={isMobile ? 'small' : 'medium'}
-                      sx={{ 
+                      sx={{
                         bgcolor: currentTheme.palette.primary.light, 
                         ":hover": { bgcolor: currentTheme.palette.primary.main, color: "#fff" },
                         boxShadow: currentTheme.shadows[1],
@@ -1369,7 +1369,7 @@ const UserTable: React.FC<UserTableProps> = ({
                       color="error" 
                       onClick={() => onDelete(user)}
                       size={isMobile ? 'small' : 'medium'}
-                      sx={{ 
+                      sx={{
                         bgcolor: currentTheme.palette.error.light, 
                         ":hover": { bgcolor: currentTheme.palette.error.main, color: "#fff" },
                         boxShadow: currentTheme.shadows[1],

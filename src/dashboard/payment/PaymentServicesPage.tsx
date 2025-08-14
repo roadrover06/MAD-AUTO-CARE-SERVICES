@@ -158,6 +158,28 @@ const PaymentServicesPage: React.FC<PaymentServicesPageProps> = ({
   const [change, setChange] = useState<number>(0);
   const [syncingOffline, setSyncingOffline] = useState(false);
 
+  // Helper function to check if a service is Premium Wash
+  const isPremiumWash = (serviceId: string) => {
+    const service = services.find(s => s.id === serviceId);
+    return service?.name.toLowerCase().includes('premium wash');
+  };
+
+  // Calculate commissionable amount (total price minus Premium Wash services)
+  const calcCommissionableAmount = (serviceIds: string[], variety: string, manualSvcs: { name: string; price: number }[]) => {
+    // Only exclude Premium Wash if more than 1 service and Premium Wash is included
+    const hasPremiumWash = serviceIds.some(isPremiumWash);
+    const excludePremium = serviceIds.length > 1 && hasPremiumWash;
+    const autoTotal = serviceIds.reduce((sum, id) => {
+      if (excludePremium && isPremiumWash(id)) return sum; // Skip Premium Wash
+      const s = services.find(s => s.id === id);
+      return sum + (s?.prices?.[variety] ?? 0);
+    }, 0);
+    const manualTotal = manualSvcs.reduce((sum, s) => sum + (typeof s.price === "number" ? s.price : 0), 0);
+    return autoTotal + manualTotal;
+  };
+
+  
+
   // Quick amount buttons for payment dialog
   const quickAmounts = useMemo(() => {
     // Suggest common amounts: exact price, price + 20, price + 50, price + 100, price + 500
@@ -275,18 +297,40 @@ const PaymentServicesPage: React.FC<PaymentServicesPageProps> = ({
   // Handle service selection (multi-select)
   const handleServicesChange = (event: any) => {
     const value = event.target.value as string[];
-    setForm(f => {
-      const price = calcTotalPrice(value, f.variety, manualServices);
-      return { ...f, serviceIds: value, price };
-    });
+    const price = calcTotalPrice(value, form.variety, manualServices);
+    const commissionableAmount = calcCommissionableAmount(value, form.variety, manualServices);
+    
+    // Update commissions based on new service selection
+    const updatedEmployees = form.employees.map(e => ({
+      ...e,
+      commission: Math.round(((form.commissions[e.id] ?? 0) / 100) * commissionableAmount)
+    }));
+
+    setForm(f => ({ 
+      ...f, 
+      serviceIds: value, 
+      price,
+      employees: updatedEmployees
+    }));
   };
 
-  // When variety changes, recalculate price for all selected services
+  // When variety changes, recalculate price and commissions
   const handleVarietyChange = (variety: string) => {
-    setForm(f => {
-      const price = calcTotalPrice(f.serviceIds, variety, manualServices);
-      return { ...f, variety, price };
-    });
+    const price = calcTotalPrice(form.serviceIds, variety, manualServices);
+    const commissionableAmount = calcCommissionableAmount(form.serviceIds, variety, manualServices);
+    
+    // Update commissions based on new variety
+    const updatedEmployees = form.employees.map(e => ({
+      ...e,
+      commission: Math.round(((form.commissions[e.id] ?? 0) / 100) * commissionableAmount)
+    }));
+
+    setForm(f => ({ 
+      ...f, 
+      variety, 
+      price,
+      employees: updatedEmployees
+    }));
   };
 
   // Manual service entry state
@@ -346,16 +390,29 @@ const PaymentServicesPage: React.FC<PaymentServicesPageProps> = ({
 
   // Handle commission input for each employee (percentage)
   const handleCommissionChange = (id: string, percent: number) => {
+    const commissionableAmount = calcCommissionableAmount(form.serviceIds, form.variety, manualServices);
     setForm(f => ({
       ...f,
       commissions: { ...f.commissions, [id]: percent },
       employees: f.employees.map(e =>
         e.id === id
-          ? { ...e, commission: Math.round((percent / 100) * f.price) }
+          ? { ...e, commission: Math.round((percent / 100) * commissionableAmount) }
           : e
       )
     }));
   };
+
+  // When price changes, update commission values based on commissionable amount
+  useEffect(() => {
+    const commissionableAmount = calcCommissionableAmount(form.serviceIds, form.variety, manualServices);
+    setForm(f => ({
+      ...f,
+      employees: f.employees.map(e => ({
+        ...e,
+        commission: Math.round(((f.commissions[e.id] ?? 0) / 100) * commissionableAmount)
+      }))
+    }));
+  }, [form.serviceIds, form.variety, manualServices]);
 
   // Add referrer commission calculation
   const handleReferrerChange = (id: string) => {
@@ -442,15 +499,17 @@ const PaymentServicesPage: React.FC<PaymentServicesPageProps> = ({
   };
 
   // Save payment only on confirm (for new or for "Pay Now")
+  
   const handleAddPayment = async () => {
     try {
       // Defensive: Ensure customerName, carName, plateNumber are strings (not undefined/null)
+         // Plate number is now optional
       const customerName = typeof form.customerName === "string" ? form.customerName : "";
       const carName = typeof form.carName === "string" ? form.carName : "";
       const plateNumber = typeof form.plateNumber === "string" ? form.plateNumber : "";
 
-      if (!customerName.trim() || !carName.trim() || !plateNumber.trim()) {
-        setSnackbar({ open: true, message: "Please fill in all customer and car details.", severity: "error" });
+      if (!customerName.trim() || !carName.trim()) {
+        setSnackbar({ open: true, message: "Please fill in customer and car details.", severity: "error" });
         return;
       }
 
@@ -465,20 +524,19 @@ const PaymentServicesPage: React.FC<PaymentServicesPageProps> = ({
       if (form.referrerId && form.referrerId !== "") {
         let refEmpFullName = "";
         const empObj = employees.find(e => e.id === form.referrerId);
-        if (empObj && typeof empObj.name === "string") {
+        if (empObj) {
           refEmpFullName = empObj.name;
         } else {
-          const emp = employees.length === 0 && Array.isArray(employees)
-            ? undefined
-            : employees.find(e => e.id === form.referrerId);
-          if (emp && typeof emp.name === "string") {
-            refEmpFullName = emp.name;
-          }
+          // fallback to name from form.employees if available
+          const fallbackEmp = form.employees.find(e => e.id === form.referrerId);
+          refEmpFullName = fallbackEmp ? fallbackEmp.name : "";
         }
+        // Use commissionable amount for referrer commission
+        const commissionableAmount = calcCommissionableAmount(form.serviceIds, form.variety, manualServices);
         referrerObj = {
           id: form.referrerId,
           name: refEmpFullName,
-          commission: Math.round((form.referrerCommission / 100) * totalPrice)
+          commission: Math.round((form.referrerCommission / 100) * commissionableAmount)
         };
       }
 
@@ -1111,15 +1169,45 @@ const PaymentServicesPage: React.FC<PaymentServicesPageProps> = ({
                   {/* Employees column: move stopPropagation to Chip */}
                   <TableCell>
                     {Array.isArray(r.employees) && r.employees.length > 0
-                      ? r.employees.map(e => (
-                          <Chip
-                            key={e.id}
-                            label={`${e.name} (${e.commission}₱, ${e.commission && r.price ? Math.round((e.commission / r.price) * 100) : 0}% )`}
-                            size="small"
-                            sx={{ mr: 0.5, mb: 0.5 }}
-                            onClick={ev => ev.stopPropagation()}
-                          />
-                        ))
+                      ? r.employees.map(e => {
+                          // Calculate commissionable amount for this record (exclude Premium Wash if needed)
+                          const commissionableAmount = (() => {
+                            if (Array.isArray(r.serviceIds) && r.serviceIds.length > 1 && r.serviceIds.some(sid => {
+                              const svc = services.find(s => s.id === sid);
+                              return svc?.name.toLowerCase().includes('premium wash');
+                            })) {
+                              return r.serviceIds.reduce((sum, sid) => {
+                                const svc = services.find(s => s.id === sid);
+                                if (svc?.name.toLowerCase().includes('premium wash')) return sum;
+                                return sum + (svc?.prices?.[r.variety] ?? 0);
+                              }, 0) +
+                              (Array.isArray(r.manualServices)
+                                ? r.manualServices.reduce((sum, s) => sum + (typeof s.price === "number" ? s.price : 0), 0)
+                                : 0);
+                            } else if (Array.isArray(r.serviceIds)) {
+                              return r.serviceIds.reduce((sum, sid) => {
+                                const svc = services.find(s => s.id === sid);
+                                return sum + (svc?.prices?.[r.variety] ?? 0);
+                              }, 0) +
+                              (Array.isArray(r.manualServices)
+                                ? r.manualServices.reduce((sum, s) => sum + (typeof s.price === "number" ? s.price : 0), 0)
+                                : 0);
+                            } else {
+                              return r.price;
+                            }
+                          })();
+                          // Calculate percentage based on commissionableAmount
+                          const percent = commissionableAmount > 0 ? Math.round((e.commission / commissionableAmount) * 100) : 0;
+                          return (
+                            <Chip
+                              key={e.id}
+                              label={`${e.name} (${e.commission}₱, ${percent}% )`}
+                              size="small"
+                              sx={{ mr: 0.5, mb: 0.5 }}
+                              onClick={ev => ev.stopPropagation()}
+                            />
+                          );
+                        })
                       : "-"
                     }
                   </TableCell>
@@ -1276,7 +1364,7 @@ const PaymentServicesPage: React.FC<PaymentServicesPageProps> = ({
                 onChange={e => setForm(f => ({ ...f, carName: e.target.value }))}
               />
               <TextField
-                label="Plate #"
+                label="Plate # (Optional)"
                 fullWidth
                 margin="normal"
                 value={form.plateNumber}
@@ -1321,7 +1409,7 @@ const PaymentServicesPage: React.FC<PaymentServicesPageProps> = ({
                 sx={{ width: 100 }}
               />
               <Typography variant="body2" sx={{ minWidth: 80 }}>
-                {peso(Math.round(((form.referrerCommission ?? 0) / 100) * form.price))}
+                {peso(Math.round(((form.referrerCommission ?? 0) / 100) * calcCommissionableAmount(form.serviceIds, form.variety, manualServices)))}
               </Typography>
             </Box>
           )}
@@ -1450,31 +1538,33 @@ const PaymentServicesPage: React.FC<PaymentServicesPageProps> = ({
               </MenuItem>
             ))}
           </Select>
-          {form.employees.length > 0 && (
-            <Box sx={{ mt: 2 }}>
-              <Typography variant="subtitle2" sx={{ mb: 1 }}>Labor Employee Commissions (%)</Typography>
-              {form.employees.map(e => (
-                <Box key={e.id} sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
-                  <Typography sx={{ minWidth: 120 }}>{e.name}</Typography>
-                  <TextField
-                    label="Commission %"
-                    type="number"
-                    size="small"
-                    value={form.commissions[e.id] ?? 0}
-                    onChange={ev => handleCommissionChange(e.id, Number(ev.target.value))}
-                    InputProps={{
-                      endAdornment: <InputAdornment position="end">%</InputAdornment>,
-                      inputProps: { min: 0, max: 100 }
-                    }}
-                    sx={{ width: 100 }}
-                  />
-                  <Typography variant="body2" sx={{ minWidth: 80 }}>
-                    {peso(Math.round(((form.commissions[e.id] ?? 0) / 100) * form.price))}
-                  </Typography>
-                </Box>
-              ))}
-            </Box>
-          )}
+{form.employees.length > 0 && (
+          <Box sx={{ mt: 2 }}>
+            <Typography variant="subtitle2" sx={{ mb: 1 }}>
+              Labor Employee Commissions (%) - Based on {peso(calcCommissionableAmount(form.serviceIds, form.variety, manualServices))} (excludes Premium Wash)
+            </Typography>
+            {form.employees.map(e => (
+              <Box key={e.id} sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
+                <Typography sx={{ minWidth: 120 }}>{e.name}</Typography>
+                <TextField
+                  label="Commission %"
+                  type="number"
+                  size="small"
+                  value={form.commissions[e.id] ?? 0}
+                  onChange={ev => handleCommissionChange(e.id, Number(ev.target.value))}
+                  InputProps={{
+                    endAdornment: <InputAdornment position="end">%</InputAdornment>,
+                    inputProps: { min: 0, max: 100 }
+                  }}
+                  sx={{ width: 100 }}
+                />
+                <Typography variant="body2" sx={{ minWidth: 80 }}>
+                  {peso(e.commission)}
+                </Typography>
+              </Box>
+            ))}
+          </Box>
+        )}
           {/* --- Custom createdAt controls --- */
           }
           <Box sx={{ mt: 2, mb: 1 }}>
@@ -1523,7 +1613,6 @@ const PaymentServicesPage: React.FC<PaymentServicesPageProps> = ({
             disabled={
               !form.customerName ||
               !form.carName ||
-              !form.plateNumber ||
               (form.serviceIds.length === 0 && manualServices.length === 0)
               // No check for employees or referrer!
             }
